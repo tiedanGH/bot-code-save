@@ -1,0 +1,95 @@
+<style>
+    .hex{
+        width: 50px;
+        height: 86.6px;
+        position:relative;
+        margin: -1px 13px;
+        display: block;
+        border-top: 1px solid black;
+        border-bottom: 1px solid black;
+    }
+    .hex::after{
+        position: absolute;
+        content: '';
+        width: 50px;
+        height: 86.6px;
+        transform: rotate(60deg);
+        border-top: 1px solid black;
+        border-bottom: 1px solid black;
+        background-color: inherit;
+    }
+    .hex::before{
+        position: absolute;
+        content: '';
+        width: 50px;
+        height: 86.6px;
+        transform: rotate(-60deg);
+        border-top: 1px solid black;
+        border-bottom: 1px solid black;
+        background-color: inherit;
+    }
+    .c0{
+        background-color: gainsboro;
+    }
+    .c1{
+        background-color: red;
+    }
+    .c2{
+        background-color: #0066FF;
+    }
+    .board {
+        display: flex;
+        margin-left: 20px;
+        margin-right: 20px;
+    }
+    .col {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+</style>
+<div class="board">
+    <div class="col">
+        <div class="hex c0"></div>
+    </div>
+    <div class="col">
+        <div class="hex c1"></div>
+        <div class="hex c2"></div>
+    </div>
+    <div class="col">
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+    </div>
+    <div class="col">
+        <div class="hex c2"></div>
+        <div class="hex"></div>
+        <div class="hex c0"></div>
+        <div class="hex"></div>
+    </div>
+    <div class="col">
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex c1"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+    </div>
+    <div class="col">
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+    </div>
+    <div class="col">
+        <div class="hex"></div>
+        <div class="hex"></div>
+        <div class="hex"></div>
+    </div>
+    <div class="col">
+        <div class="hex"></div>
+        <div class="hex"></div>
+    </div>
+    <div class="col">
+        <div class="hex"></div>
+    </div>
+</div>
