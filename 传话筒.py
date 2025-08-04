@@ -101,13 +101,14 @@ def process_args(stdin):
         if current == group:
             data_output["content"] = "原地TP还需要什么传话筒\n(～￣▽￣)～"
             raise Error()
-        message = "\n".join(lst[1:])
-        data_output["active"] = {}
-        data_output["active"]["group"] = group
+        message = " ".join(lst[1:])
+        data_output["active"] = [{}]
+        data_output["active"][0]["groupID"] = group
+        data_output["active"][0]["message"] = {}
         if data_input["from"] == "private":
-            data_output["active"]["content"] = f"{data_input['nickname']}({data_input['userID']})发送了一条消息：\n{message}"
+            data_output["active"][0]["message"]["content"] = f"{data_input['nickname']}({data_input['userID']})发送了一条消息：\n{message}"
         else:
-            data_output["active"]["content"] = f"来自群 {data_input['from']} 的消息：\n{message}"
+            data_output["active"][0]["message"]["content"] = f"来自群 {data_input['from']} 的消息：\n{message}"
         data_output["content"] = "[操作成功] 如果报错，可能是通讯录信息错误或bot未加入此群聊"
     
     # 参数不匹配
