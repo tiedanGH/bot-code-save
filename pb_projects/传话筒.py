@@ -1,3 +1,4 @@
+import sys
 import json
 import re
 
@@ -95,20 +96,36 @@ def process_args(stdin):
         elif to.isdigit() and int(to) in data["contacts"].values():
             group = int(to)
         else:
-            data_output["content"] = "[发送失败] 通讯录中不包含此群聊的相关信息，仅能向列表中的群聊发送消息"
+            data_output["content"] = "[发送失败] 通讯录中不包含此群聊的相关信息，仅能向列表中的群聊发送消息。使用「#run 传话筒 list」查看通讯录列表"
             raise Error()
         current = groupID(data_input["from"])
         if current == group:
             data_output["content"] = "原地TP还需要什么传话筒\n(～￣▽￣)～"
             raise Error()
-        message = " ".join(lst[1:])
-        data_output["active"] = [{}]
-        data_output["active"][0]["groupID"] = group
-        data_output["active"][0]["message"] = {}
+        message = " ".join(item.replace("[图片]", "") for item in lst[1:] if item != "[图片]")
+        if message:
+            message = "\n" + message
+        data_output["active"] = [{
+            "groupID": group,
+            "message": {
+                "format": "MessageChain",
+                "messageList": []
+            }
+        }]
+        msg_list = data_output["active"][0]["message"]["messageList"]
+        # 文本消息
         if data_input["from"] == "private":
-            data_output["active"][0]["message"]["content"] = f"{data_input['nickname']}({data_input['userID']})发送了一条消息：\n{message}"
+            content = f"{data_input['nickname']}({data_input['userID']})发送了一条消息：{message}"
         else:
-            data_output["active"][0]["message"]["content"] = f"来自群 {data_input['from']} 的消息：\n{message}"
+            content = f"来自群 {data_input['from']} 的消息：{message}"
+        msg_list.append({"content": content})
+        # 图片消息
+        for img in data_input.get("images", []):
+            msg_list.append({
+                "format": "base64",
+                "content": img["base64"]
+            })
+        # 程序原始输出
         data_output["content"] = "[操作成功] 如果报错，可能是通讯录信息错误或bot未加入此群聊"
     
     # 参数不匹配
@@ -116,11 +133,9 @@ def process_args(stdin):
         data_output["content"] = "[参数不匹配] 请查看下方指令帮助：\n\n" + HELP_MESSAGE
 
 # ----------main----------
-json_input = input()
-try:
-    stdin = input()
-except:
-    stdin = ""
+json_input = sys.stdin.readline().strip()
+stdin = sys.stdin.read().strip()
+
 data_input = json.loads(json_input)
 data_output = {}
 storage = data_input["storage"]
