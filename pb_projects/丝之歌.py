@@ -16,23 +16,33 @@ BOSSES = [
     {"name": "碎裂者修女", "hp": 16, "attack": 2},
     {"name": "黑寡妇", "hp": 18, "attack": 2},
     {"name": "巨型螺蝇", "hp": 14, "attack": 2},
-    {"name": "狂暴螺蝇", "hp": 14, "attack": 4},
+    {"name": "狂暴螺蝇", "hp": 16, "attack": 4},
     {"name": "末代裁决者", "hp": 18, "attack": 2},
     {"name": "机枢舞者", "hp": 20, "attack": 2},
     {"name": "散茧魂渊", "hp": 26, "attack": 2},
     {"name": "特罗比奥", "hp": 20, "attack": 2},
     {"name": "幽影", "hp": 18, "attack": 2},
-    {"name": "原罪者", "hp": 28, "attack": 2},
+    {"name": "原罪者", "hp": 30, "attack": 2},
     {"name": "伟大的格洛", "hp": 28, "attack": 2},
     {"name": "大跳蚤", "hp": 12, "attack": 2},
     {"name": "失格大厨", "hp": 24, "attack": 2},
     {"name": "监工兄弟", "hp": 18, "attack": 3},
+    {"name": "次席戍卫", "hp": 24, "attack": 2},
     {"name": "圣所蕾丝", "hp": 24, "attack": 2},
     {"name": "苍白之母", "hp": 30, "attack": 2},
-    {"name": "三叶草舞者", "hp": 28, "attack": 2},
-    {"name": "失心加蒙德", "hp": 18, "attack": 1},
-    {"name": "针姬", "hp": 28, "attack": 2},
+
+    {"name": "三叶草舞者", "hp": 32, "attack": 2},
+    {"name": "失心加蒙德", "hp": 28, "attack": 2},
+    {"name": "针姬", "hp": 32, "attack": 2},
     {"name": "腐囊之父", "hp": 32, "attack": 2},
+    {"name": "边陲守望者", "hp": 32, "attack": 2},
+    {"name": "伏特维姆", "hp": 20, "attack": 2},
+    {"name": "被放逐的格尔", "hp": 22, "attack": 2},
+    {"name": "育母", "hp": 32, "attack": 2},
+    {"name": "壳王卡汗", "hp": 40, "attack": 2},
+    {"name": "尼莱斯", "hp": 40, "attack": 2},
+    {"name": "圣所守卫者·赛斯", "hp": 40, "attack": 2},
+    {"name": "斯卡尔歌后·卡梅莉塔", "hp": 40, "attack": 2},
     {"name": "失心蕾丝", "hp": 50, "attack": 2}
 ]
 
@@ -53,8 +63,8 @@ class SilkSongGame:
         self.storage.setdefault("checkpoint_position", 0)
         self.storage.setdefault("hp", 5)
         self.storage.setdefault("max_hp", 5)
-        self.storage.setdefault("silk", 10)
-        self.storage.setdefault("max_silk", 10)
+        self.storage.setdefault("silk", 9)
+        self.storage.setdefault("max_silk", 9)
         self.storage.setdefault("beads", 0)
         self.storage.setdefault("attack", 1)
         self.storage.setdefault("death_info", None)
@@ -146,7 +156,7 @@ class SilkSongGame:
 帮助/h/help - 查看游戏规则和指令说明
 状态/s/status - 查看当前游戏状态
 前进/g/go - 向前移动，可能触发各种事件
-回血/hp - 消耗10灵丝恢复3点生命
+回血/hp - 消耗9灵丝恢复3点生命
 回椅子/c/chair - 返回存档点并恢复生命
 购买/b/buy - 在遇到椅子时购买存档点
 排行/r/rank - 查看距离排行榜
@@ -251,8 +261,8 @@ class SilkSongGame:
         if self.storage['hp'] < original_hp:
             event_text += f"\n当前剩余生命：{self.storage['hp']}/{self.storage['max_hp']}"
         
-        # 检查灵丝是否达到10
-        if self.storage['silk'] >= 10 and self.storage['silk'] > original_silk:
+        # 检查灵丝是否达到回血限制
+        if self.storage['silk'] >= 9 and self.storage['silk'] > original_silk:
             event_text += f"\n灵丝已恢复至{self.storage['silk']}点！"
         
         self.output["content"] = event_text
@@ -344,16 +354,17 @@ class SilkSongGame:
     def encounter_boss(self):
         """Boss战"""
         # 检查是否触发最终boss
-        if self.storage['void_invasion'] and self.storage['current_position'] >= 100 and random.random() < 0.6:
+        if self.storage['void_invasion'] and self.storage['current_position'] >= 100 and random.random() < 0.4:
             boss = next(b for b in BOSSES if b['name'] == "失心蕾丝")
         elif (not self.storage['void_invasion']) and self.storage['current_position'] >= 50 and random.random() < 0.8:
             boss = next(b for b in BOSSES if b['name'] == "苍白之母")
         else:
             # 根据虚空入侵状态选择boss池
+            hard_bosses = ["三叶草舞者", "失心加蒙德", "针姬", "腐囊之父", "边陲守望者", "伏特维姆", "被放逐的格尔", "育母", "壳王卡汗", "尼莱斯", "圣所守卫者·赛斯", "斯卡尔歌后·卡梅莉塔"]
             if self.storage['void_invasion']:
-                available_bosses = [b for b in BOSSES if b['name'] not in ["苍白之母", "失心蕾丝"]]
+                available_bosses = [b for b in BOSSES if b['name'] in hard_bosses]
             else:
-                available_bosses = [b for b in BOSSES if b['name'] not in ["三叶草舞者", "失心加蒙德", "针姬", "腐囊之父", "苍白之母", "失心蕾丝"]]
+                available_bosses = [b for b in BOSSES if b['name'] not in hard_bosses and b['name'] not in ["苍白之母", "失心蕾丝"]]
             
             boss = random.choice(available_bosses)
         
@@ -388,7 +399,7 @@ class SilkSongGame:
                 self.storage['silk_fragments'] = 0
                 text += "集齐2个灵丝轴碎片！灵丝上限+1，灵丝回满！\n"
         
-        elif item_chance < 0.80:  # 苍白油
+        elif item_chance < 0.85:  # 苍白油
             self.storage['pale_oil'] += 1
             self.storage['attack'] += 1
             text += "获得苍白油！攻击力+1\n"
@@ -437,18 +448,18 @@ class SilkSongGame:
     
     def heal(self):
         """回血指令"""
-        if self.storage['silk'] < 10:
-            self.output["content"] = "灵丝不足10点，无法回血"
+        if self.storage['silk'] < 9:
+            self.output["content"] = "灵丝不足9点，无法回血"
             return
         
-        self.storage['silk'] -= 10
+        self.storage['silk'] -= 9
         heal_amount = min(3, self.storage['max_hp'] - self.storage['hp'])
         self.storage['hp'] += heal_amount
         
         if self.storage['silk'] == 0:
             self.storage['silk'] = 1
         
-        self.output["content"] = f"消耗10灵丝，恢复{heal_amount}点生命"
+        self.output["content"] = f"消耗9灵丝，恢复{heal_amount}点生命"
     
     def return_to_chair(self):
         """回椅子指令"""
@@ -546,8 +557,8 @@ class SilkSongGame:
                     if self.storage['hp'] <= 0:
                         text += self.player_die()
         
-        # 检查灵丝是否达到10
-        if self.storage['silk'] >= 10 and hits > 0:
+        # 检查灵丝是否达到回血限制
+        if self.storage['silk'] >= 9 and hits > 0:
             text += f"\n灵丝已恢复至{self.storage['silk']}点！"
 
         self.output["content"] = text
@@ -558,7 +569,7 @@ class SilkSongGame:
             self.output["content"] = "非战斗状态无法闪避"
             return
         
-        if random.random() < 0.97:  # 97% 成功闪避
+        if random.random() < 0.95:  # 95% 成功闪避
             self.output["content"] = "成功闪避攻击！"
         else:
             if self.storage['battle_type'] == 'boss':
@@ -616,8 +627,8 @@ class SilkSongGame:
     
     def battle_heal(self):
         """战斗回血"""
-        if self.storage['silk'] < 10:
-            self.output["content"] = "灵丝不足10点，无法回血"
+        if self.storage['silk'] < 9:
+            self.output["content"] = "灵丝不足9点，无法回血"
             return
         
         # 检查回血失败概率
@@ -636,21 +647,21 @@ class SilkSongGame:
                 fail_chance = 0.50
         
         if random.random() < fail_chance:
-            self.storage['silk'] -= 10
+            self.storage['silk'] = 1
             self.storage['hp'] -= 1  # 受到攻击
-            self.output["content"] = "回血失败！受到攻击并消耗10灵丝"
-            
+            self.output["content"] = "回血失败！受到攻击且灵丝被清空"
+
             if self.storage['hp'] <= 0:
                 self.output["content"] += self.player_die()
         else:
-            self.storage['silk'] -= 10
+            self.storage['silk'] -= 9
             heal_amount = min(3, self.storage['max_hp'] - self.storage['hp'])
             self.storage['hp'] += heal_amount
             
             if self.storage['silk'] == 0:
                 self.storage['silk'] = 1
             
-            self.output["content"] = f"消耗10灵丝，恢复{heal_amount}点生命"
+            self.output["content"] = f"消耗9灵丝，恢复{heal_amount}点生命"
     
     def defeat_boss(self):
         """击败Boss"""
@@ -704,8 +715,8 @@ class SilkSongGame:
             "checkpoint_position": 0,
             "hp": 5,
             "max_hp": 5,
-            "silk": 10,
-            "max_silk": 10,
+            "silk": 9,
+            "max_silk": 9,
             "beads": 0,
             "attack": 1,
             "death_info": None,
