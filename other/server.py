@@ -8,10 +8,28 @@ import os
 import sys
 import datetime
 import ipaddress
+import json
+import subprocess
 
-BLACKLIST_FILE = "blacklist.txt"   # Blacklist file (one IP or CIDR per line)
-SERVE_DIR = "server"               # Root directory to serve
-LOGS_DIR = "logs"                  # Logs directory (stored in current folder)
+CONFIG_FILE = "config.json"         # Config file (projects config)
+BLACKLIST_FILE = "blacklist.txt"    # Blacklist file (one IP or CIDR per line)
+SERVE_DIR = "server"                # Root directory to serve
+LOGS_DIR = "logs"                   # Logs directory (stored in current folder)
+
+# ---------- Config Loader ----------
+def load_config(path=CONFIG_FILE):
+    """Load config.json, create if not exists."""
+    if not os.path.exists(path):
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({"projects": []}, f, indent=4)
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def find_project_by_name(cfg, name):
+    for p in cfg.get("projects", []):
+        if p.get("name") == name:
+            return p
+    return None
 
 # ---------- Logging Handler ----------
 class DateFileHandler(logging.Handler):
@@ -114,37 +132,132 @@ def ip_is_blocked(client_ip, blacklist):
                 return True
     return False
 
-# ---------- Custom TCPServer with IP blacklist ----------
-class BlacklistTCPServer(socketserver.TCPServer):
-    allow_reuse_address = True
-
-    def verify_request(self, request, client_address):
-        """
-        Called before processing a request.
-        Return False to drop the connection immediately.
-        """
-        client_ip = client_address[0]
-        blacklist = load_blacklist(BLACKLIST_FILE)
-        if ip_is_blocked(client_ip, blacklist):
-            logger.info(f"Rejected connection from {client_ip}")
-            return False
-        return True
+def respond_json(handler, status, data):
+    body = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    handler.send_response(status)
+    handler.send_header("Content-Type", "application/json")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
 
 # ---------- HTTP Handler ----------
 class LoggingHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    _blacklist_cache = None
+    _blacklist_mtime = 0
+
     def __init__(self, *args, directory=SERVE_DIR, **kwargs):
         os.makedirs(directory, exist_ok=True)
         super().__init__(*args, directory=directory, **kwargs)
+
+    @classmethod
+    def _load_blacklist_if_updated(cls):
+        try:
+            current_mtime = os.path.getmtime(BLACKLIST_FILE)
+            if (cls._blacklist_cache is None or current_mtime != cls._blacklist_mtime):
+                cls._blacklist_cache = load_blacklist(BLACKLIST_FILE)
+                cls._blacklist_mtime = current_mtime
+                logger.info(f"Reloaded blacklist, {len(cls._blacklist_cache)} entries")
+                return True
+            return False
+        except OSError as e:
+            if cls._blacklist_cache is None:
+                cls._blacklist_cache = []
+                logger.warning(f"Blacklist file not found: {BLACKLIST_FILE}")
+            return False
+
+    def check_ip_blacklist(self):
+        self._load_blacklist_if_updated()
+        real_ip = self.headers.get("X-Real-IP") or self.client_address[0]
+        if ip_is_blocked(real_ip, self._blacklist_cache):
+            logger.warning(f"Rejected HTTP request from {real_ip}")
+            self.send_error(403, "Forbidden")
+            return False
+        return True
+
+    def do_GET(self):
+        if not self.check_ip_blacklist():
+            return
+        super().do_GET()
+
+    def do_HEAD(self):
+        if not self.check_ip_blacklist():
+            return
+        super().do_HEAD()
+
+    def do_POST(self):
+        if not self.check_ip_blacklist():
+            return
+
+        if self.path != "/api/pull":
+            return respond_json(self, 400, {"error": "Invalid POST Request", "code": 400})
+
+        # git pull API
+        cfg = load_config()
+
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length).decode("utf-8")
+            data = json.loads(body)
+        except Exception:
+            return respond_json(self, 400, {"error": "Invalid POST Request", "code": 400})
+
+        if "name" not in data:
+            return respond_json(self, 400, {"error": "Invalid POST Request", "code": 400})
+
+        project = find_project_by_name(cfg, data["name"])
+        if not project:
+            return respond_json(self, 404, {"error": "Project Not Found", "code": 404})
+
+        if self.headers.get("token") != project.get("token"):
+            return respond_json(self, 401, {"error": "Invalid Token", "code": 401})
+
+        repo_path = project.get("path")
+        if not os.path.isdir(repo_path):
+            return respond_json(self, 500, {"error": "Internal Server Error: invalid repository path", "code": 500})
+
+        try:
+            proc = subprocess.Popen(
+                ["git", "pull"],
+                cwd=repo_path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True
+            )
+            stdout, _ = proc.communicate()
+            exit_code = proc.returncode
+            if exit_code != 0:
+                return respond_json(self, 500, {"error": "git pull FAILED", "exit_code": exit_code, "message": stdout.strip()})
+        except Exception as e:
+            return respond_json(self, 500, {"error": f"git pull ERROR", "code": 500, "message": e})
+
+        # success
+        return respond_json(self, 200, {"message": stdout.strip()})
+
+    def do_PUT(self):
+        self.send_error(405, "Method Not Allowed")
+
+    def do_PATCH(self):
+        self.send_error(405, "Method Not Allowed")
+
+    def do_DELETE(self):
+        self.send_error(405, "Method Not Allowed")
+
+    def do_OPTIONS(self):
+        self.send_error(405, "Method Not Allowed")
 
     def log_message(self, format, *args):
         real_ip = self.headers.get("X-Real-IP") or self.client_address[0]
         logger.info("%s - - %s" % (real_ip, format % args))
 
+# ---------- Custom TCPServer ----------
+class CustomTCPServer(socketserver.TCPServer):
+    allow_reuse_address = True
+
 # ---------- Start Server ----------
 if __name__ == '__main__':
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
     handler_class = LoggingHTTPRequestHandler
-    with BlacklistTCPServer(("", port), handler_class) as httpd:
+    with CustomTCPServer(("", port), handler_class) as httpd:
         logger.info(f"Serving HTTP on 0.0.0.0 port {port} (http://0.0.0.0:{port}/) serving directory '{SERVE_DIR}' ...")
         try:
             httpd.serve_forever()

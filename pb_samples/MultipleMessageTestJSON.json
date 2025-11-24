@@ -1,0 +1,24 @@
+{
+    "format":"MultipleMessage",
+    "messageList": [
+        {
+            "content": "测试多条文本消息"
+        },
+        {
+            "format": "markdown",
+            "content": "测试多条图片消息"
+        },
+        {
+            "format":"ForwardMessage",
+            "content": "{\"title\":\"测试多条转发消息\",\"brief\":\"聊天列表预览\",\"preview\":[\"自定义预览文字1\",\"自定义预览文字2\"],\"messages\":[{\"content\": \"自定义转发文字消息1\"},{\"format\":\"markdown\",\"width\": 300,\"content\":\"### 自定义转发markdown图片消息\\n- 自定义文字内容\"},{\"content\": \"自定义转发文字消息2\"}]}"
+        },
+        {
+            "format": "Audio",
+            "content": "{\"content\": \"测试无参数多条语音消息\"}"
+        },
+        {
+            "content": "测试完成"
+        }
+    ]
+}
+
