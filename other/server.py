@@ -32,29 +32,30 @@ def find_project_by_name(cfg, name):
     return None
 
 # ---------- Logging Handler ----------
-class DateFileHandler(logging.Handler):
+class MonthFileHandler(logging.Handler):
     def __init__(self, logs_dir=LOGS_DIR, encoding='utf-8'):
         super().__init__()
         self.logs_dir = logs_dir
         self.encoding = encoding
         os.makedirs(self.logs_dir, exist_ok=True)
-        self.current_date = datetime.date.today()
+        self.current_month = datetime.date.today().strftime("%Y-%m")
         self._open_file()
 
     def _open_file(self):
-        path = os.path.join(self.logs_dir, f"{self.current_date.isoformat()}.log")
+        path = os.path.join(self.logs_dir, f"{self.current_month}.log")
         self.stream = open(path, 'a', encoding=self.encoding)
 
     def emit(self, record):
         try:
-            now = datetime.date.today()
-            if now != self.current_date:
+            now_month = datetime.date.today().strftime("%Y-%m")
+            if now_month != self.current_month:
                 try:
                     self.stream.close()
                 except Exception:
                     pass
-                self.current_date = now
+                self.current_month = now_month
                 self._open_file()
+
             msg = self.format(record)
             self.stream.write(msg + '\n')
             self.stream.flush()
@@ -74,7 +75,7 @@ fmt = logging.Formatter('%(asctime)s  %(levelname)s  %(message)s', '%Y-%m-%d %H:
 
 stream_h = logging.StreamHandler(sys.stdout)
 stream_h.setFormatter(fmt)
-file_h = DateFileHandler(LOGS_DIR)
+file_h = MonthFileHandler(LOGS_DIR)
 file_h.setFormatter(fmt)
 
 if not logger.handlers:
@@ -244,6 +245,11 @@ class LoggingHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_error(405, "Method Not Allowed")
+    
+    def guess_type(self, path):
+        if path.endswith(".ico"):
+            return "image/x-icon"
+        return super().guess_type(path)
 
     def log_message(self, format, *args):
         real_ip = self.headers.get("X-Real-IP") or self.client_address[0]
